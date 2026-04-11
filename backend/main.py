@@ -17,21 +17,18 @@ from datetime import datetime, timezone
 # 1. Librerías externas (SQLModel)
 from sqlmodel import Session, select 
 
-# 2. Tus Modelos y el Motor (de models.py)
-from models import create_db_and_tables, engine, User, PageInsight
+# 2. Unifica todas las importaciones de models en UNA SOLA LÍNEA
+from models import create_db_and_tables, engine, User, PageInsight, TransactionXML
 
-# agrega TransactionXML al import de models (motor de datos para XML)
+# 3. Importa el motor de XML
 from xml_engine import universal_xml_parser
-from models import TransactionXML
 
-# 3. Tu Lógica de Seguridad (de auth.py)
+# 4. Importa la lógica de seguridad
 from auth import auth_router, get_current_user, require_admin
 
 # Importaciones para manejo de archivos y procesamiento de XML
 import zipfile
 import io
-from xml_engine import universal_xml_parser # Asegúrate que el nombre coincida
-from models import TransactionXML # La tabla que creamos
 
 # --- LÓGICA DE INICIO Y CIERRE (LIFESPAN) ---
 @asynccontextmanager
@@ -95,7 +92,7 @@ def load_data() -> None:
     con la operación actual almacenada en Postgres (XML).
     """
     global df_global
-    path = "supertienda.csv"
+    path = "bi_facturacion_mx.csv"
     
     # Inicialización de DataFrames vacíos para evitar errores de referencia
     df_csv = pd.DataFrame()
@@ -149,8 +146,10 @@ def load_data() -> None:
                     'profit': 'Profit',
                     'shipping_cost': 'Shipping Cost',
                     'perdida': 'Pérdida',
-                    'country': 'Country'
+                    'country': 'Country',
+                    'discount_rate': 'Discount rate'
                 })
+                
                 # Aseguramos que la fecha de la DB sea tratada como datetime en Pandas
                 df_xml['Order Date'] = pd.to_datetime(df_xml['Order Date'])
     except Exception as e:

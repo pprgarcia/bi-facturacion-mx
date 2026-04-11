@@ -7,7 +7,7 @@ from fastapi import APIRouter, Response, HTTPException, Depends, Request
 from sqlmodel import Session, select, func
 
 # Importaciones de tus módulos
-from models import User, AuditLog, engine
+from models import create_db_and_tables, engine, User, PageInsight, TransactionXML, AuditLog
 from security import hash_password, verify_password, create_token, SECRET_KEY, ALGORITHM
 
 auth_router = APIRouter(prefix="/api/auth", tags=["Gobernanza y Autenticación"])
@@ -80,7 +80,8 @@ async def register(user_data: Dict[str, Any]):
             hashed_password=hash_password(user_data['password']),
             full_name=user_data.get('full_name', 'Nuevo Usuario'),
             role=new_role,
-            status=new_status
+            status=new_status,
+            is_active=True
         )
         
         session.add(new_user)

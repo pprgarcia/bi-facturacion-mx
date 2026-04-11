@@ -2,7 +2,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, DateTime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from sqlmodel import SQLModel, Field, create_engine, Session, select, Column, JSON
 from dotenv import load_dotenv
 
@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv() 
 
 class User(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True} 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     email: str = Field(unique=True, index=True, nullable=False)
     hashed_password: str = Field(nullable=False)
@@ -19,7 +20,7 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
 
     # ROLES: "owner", "admin", "viewer"
-    role: str = Field(default="viewer") 
+    role: str = Field(default="viewer")
     
     # ESTADOS: "pending" (espera), "active" (dentro), "suspended" (bloqueo temporal)
     status: str = Field(default="pending") 
@@ -75,6 +76,7 @@ def create_db_and_tables():
 
 # --- MODELO DE INSIGHTS ESTRATÉGICOS ---
 class PageInsight(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True} 
     id: Optional[int] = Field(default=None, primary_key=True)
     page_name: str = Field(index=True, unique=True) # ej: "dashboard", "products"
     content: str                                    # El texto de la conclusión
@@ -85,20 +87,31 @@ class PageInsight(SQLModel, table=True):
 
     # --- MODELO PARA DATOS EXTRAÍDOS DE XML ---
 class TransactionXML(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     order_id: str = Field(index=True)
     order_date: datetime
+    ship_date: Optional[datetime] = None  # Agregado
+    ship_mode: Optional[str] = None      # Agregado
     customer_name: str
+    segment: Optional[str] = None        # Agregado
+    country: str
+    market: Optional[str] = None         # Agregado
     category: str
     sub_category: str
     product_name: str
     sales: float
+    quantity: int = 1                    # Agregado
+    discount_amount: float = 0.0         # Agregado
     profit: float
     shipping_cost: float = Field(default=0.0)
-    perdida: float = Field(default=0.0)
-    country: str = Field(default="Mexico")
-    
-    # --- NUEVOS CAMPOS ---
-    metodo_pago: str = Field(default="PUE") # PUE o PPD
-    # Aquí guardamos el 100% de lo que extraiga el motor universal
-    raw_xml_data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    order_priority: Optional[str] = None # Agregado
+    perdida: float                       # Ya estaba
+    discount_rate: float = 0.0           # Agregado (para Discount rate)
+    metodo_pago: Optional[str] = None
+    raw_xml_data: Optional[str] = None
+
+# --- NUEVOS CAMPOS ---
+metodo_pago: str = Field(default="PUE") # PUE o PPD
+# Aquí guardamos el 100% de lo que extraiga el motor universal
+raw_xml_data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
