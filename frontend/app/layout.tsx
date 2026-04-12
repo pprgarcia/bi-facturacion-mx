@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+// import "./globals.css";
 import { AuthProvider } from '../context/AuthContext';
 
 const geistSans = Geist({
@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Supertienda BI - Dashboard",
+  title: "BI Facturación MX - Dashboard",
   description: "Análisis inteligente de ventas",
 };
 

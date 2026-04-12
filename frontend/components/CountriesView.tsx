@@ -36,7 +36,7 @@ export default function CountriesView() {
         setData(json);
         setMounted(true);
       })
-      .catch(err => console.error("Error cargando países:", err));
+      .catch(err => console.error("Error cargando Estados:", err));
   }, []);
 
   if (!mounted || !data) return (
@@ -121,7 +121,7 @@ export default function CountriesView() {
                     <Tooltip content={<CustomTooltip />} />
                     <ReferenceLine y={0} stroke="#cbd5e1" strokeWidth={1} />
                     
-                    <Scatter name="Países" data={data?.bubble_data}>
+                    <Scatter name="Estados" data={data?.bubble_data}>
                         {data.bubble_data?.map((entry: BubbleData, index: number) => (
                         <Cell 
                             key={`bubble-${index}`} 
@@ -138,9 +138,9 @@ export default function CountriesView() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
         
-        {/* 2. PAÍSES CON MENOR RENTABILIDAD */}
+        {/* 2. ESTADOS CON MENOR RENTABILIDAD */}
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-[500px] flex flex-col">
-          <h3 className="text-xs font-bold text-rose-500 uppercase tracking-widest mb-6 italic">Top 15: Países con Mayor Pérdida Neta</h3>
+          <h3 className="text-xs font-bold text-rose-500 uppercase tracking-widest mb-6 italic">Top 15: Estados con Mayor Pérdida Neta</h3>
           <div className="flex-1 w-full" style={{ minHeight: '400px' }}>
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={data?.bottom_countries} layout="vertical" margin={{ left: 10, right: 40, bottom: 20 }}>
@@ -156,7 +156,7 @@ export default function CountriesView() {
 
         {/* 3. CONCENTRACIÓN DE CLIENTES CRÍTICOS */}
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-[500px] flex flex-col">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 italic text-center lg:text-left">Países con más Clientes en Pérdida</h3>
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 italic text-center lg:text-left">Estados con más Clientes en Pérdida</h3>
           <div className="flex-1 w-full" style={{ minHeight: '400px' }}>
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={data?.critical_geo} layout="vertical" margin={{ left: 10, right: 40, bottom: 20 }}>
@@ -211,7 +211,7 @@ export default function CountriesView() {
                 <Tooltip content={<CustomTooltip />} />
                 <ReferenceLine y={0} stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" />
                 
-                <Scatter name="Países" data={data?.shipping_relation || []}>
+                <Scatter name="Estados" data={data?.shipping_relation || []}>
                   {(data?.shipping_relation || [])?.map((entry: ShippingRelation, index: number) => (
                     <Cell 
                       key={`ship-rel-node-${index}`} 

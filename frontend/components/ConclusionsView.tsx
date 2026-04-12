@@ -46,7 +46,7 @@ export default function ConclusionsView() {
           <span className="bg-white/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">Resumen General</span>
           <h2 className="text-4xl font-black mt-4 mb-6 leading-tight">La operación es sólida, pero la rentabilidad está siendo saboteada por el Pricing.</h2>
           <p className="text-purple-100 leading-relaxed text-lg">
-            Tras auditar 10MB de transacciones, confirmamos que el volumen de ventas ($12.6M) es excepcional. Sin embargo, el margen neto del 11.6% puede subir al 15% eliminando fugas específicas en subcategorías y países críticos.
+            Tras auditar 10MB de transacciones, confirmamos que el volumen de ventas ($12.6M) es excepcional. Sin embargo, el margen neto del 11.6% puede subir al 15% eliminando fugas específicas en subcategorías y estados críticos.
           </p>
         </div>
         <Target className="absolute right-5 bottom-5 text-white/10 w-64 h-64" />
@@ -116,7 +116,7 @@ export default function ConclusionsView() {
           icon={<Truck className="text-orange-500" />}
           category="Logística Internacional"
           title="Mito del Flete Caro"
-          description="Los datos desmienten que el transporte afecte el margen. Los países con envíos de +$120 son rentables; las pérdidas ocurren en envíos de -$20 por precios mal calculados."
+          description="Los datos desmienten que el transporte afecte el margen. Los estados con envíos de +$120 son rentables; las pérdidas ocurren en envíos de -$20 por precios mal calculados."
           impact="medio"
           type="neutral"
           evidence="Impacto de Envíos Caros en la Utilidad"

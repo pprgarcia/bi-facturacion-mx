@@ -113,7 +113,7 @@ export default function MainApp() {
           <SidebarBtn icon={<FileText/>} label="Descuentos" active={activeTab === 'discounts'} onClick={() => handleTabChange('discounts')} />
           <SidebarBtn icon={<Package/>} label="Productos" active={activeTab === 'products'} onClick={() => handleTabChange('products')} />
           <SidebarBtn icon={<Users/>} label="Clientes" active={activeTab === 'clients'} onClick={() => handleTabChange('clients')} />
-          <SidebarBtn icon={<Globe/>} label="Países" active={activeTab === 'countries'} onClick={() => handleTabChange('countries')} />
+          <SidebarBtn icon={<Globe/>} label="Estados" active={activeTab === 'countries'} onClick={() => handleTabChange('countries')} />
           <SidebarBtn icon={<FileText/>} label="Conclusiones" active={activeTab === 'conclusions'} onClick={() => handleTabChange('conclusions')} />
         </nav>
 

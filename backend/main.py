@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
     1. Carga los datos del CSV a memoria principal.
     2. Verifica y crea las tablas en Vercel Postgres.
     """
-    print("🚀 Iniciando Sistema de Inteligencia SuperTienda BI...")
+    print("🚀 Iniciando Sistema de Inteligencia BI_Facturación_MX...")
 
     
     # Inicializar Base de Datos
@@ -91,6 +91,7 @@ def load_data() -> None:
     Motor de unificación de datos: Combina el legado histórico (CSV) 
     con la operación actual almacenada en Postgres (XML).
     """
+    
     global df_global
     path = "bi_facturacion_mx.csv"
     
@@ -684,7 +685,7 @@ def get_countries_analysis(user = Depends(get_current_user)):
         ]
 
         # 3. RELACIÓN ENVÍO VS MARGEN (Tu Scatter solicitado)
-        # Calculamos para todos los países para tener una nube completa
+        # Calculamos para todos los estados para tener una nube completa
         shipping_relation = [
             {
                 "country": str(row['Country']),
@@ -709,7 +710,7 @@ def get_countries_analysis(user = Depends(get_current_user)):
             "critical_geo": critical_geo_list
         }
     except Exception as e:
-        print(f"Error en Países: {e}")
+        print(f"Error en Estados: {e}")
         return empty_response
 
 

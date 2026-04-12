@@ -152,7 +152,7 @@ useEffect(() => {
                 <BusinessQuestion text="¿Son adecuados los costos de flete o interfieren en la ganancia?" />
                 <BusinessQuestion text="¿Los clientes de mayor facturación son realmente los más rentables?" />
                 <BusinessQuestion text="¿Qué clientes reportan menos ganancia?¿Son con aquellos a los que se les vende menos?" />
-                <BusinessQuestion text="¿Qué países son los que representan el mejor mercado, y cuáles son los peores?" />
+                <BusinessQuestion text="¿Qué estados son los que representan el mejor mercado, y cuáles son los peores?" />
             </div>
             </div>
         </div>
