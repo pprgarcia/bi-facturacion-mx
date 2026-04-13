@@ -103,7 +103,7 @@ export default function MainApp() {
       `}>
         {/* --- 1. CABECERA / LOGO --- */}
         <div className="p-6 border-b border-slate-100 font-black text-xl text-purple-600 tracking-tighter italic">
-          SuperTienda Pro
+          BI Facturacion MX
         </div>
 
         {/* --- 2. NAVEGACIÓN DE CONTENIDO (Se expande para empujar el resto abajo) --- */}

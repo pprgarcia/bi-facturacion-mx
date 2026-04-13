@@ -65,7 +65,7 @@ export default function ConclusionsView() {
             Resumen Ejecutivo
           </h3>
           <p className="text-slate-800 font-bold text-lg">
-            Hallazgos Clave en <span className="text-purple-600">SuperTienda Pro</span>
+            Hallazgos Clave en <span className="text-purple-600">BI Facturación MX</span>
           </p>
         </div>
       </div>
@@ -91,7 +91,7 @@ export default function ConclusionsView() {
             <FindingItem text="Devido a la diversificación en el inventario, el mayor número de pedidos no coincide con los clientes estrella ni críticos." />
             <FindingItem text="Dentro de los clientes a los que más se factura existen algunos que no estan en la lista de los que más ganancia se obtiene. Revisar por qué no se obtiene la ganancia esperada." />
             <FindingItem text="De los 25 clientes menos rentables, sólo uno esta dentro de los 25 a los que se factura menos. Revisar a estos clientes críticos." />
-            <FindingItem text="Determinar si el mercado interno de los paises identificados con mayor pérdida es propicio para el negocio." />
+            <FindingItem text="Determinar si el mercado interno de los estados identificados con mayor pérdida es propicio para el negocio." />
           </div>
 
         </div>

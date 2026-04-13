@@ -136,7 +136,7 @@ useEffect(() => {
             {/* Columna 1: Introducción */}
             <div className="space-y-4">
                 <p className="text-slate-600 leading-relaxed">
-                Bienvenido al sistema de inteligencia de <span className="font-bold text-purple-600 underline decoration-purple-200">SuperTienda Pro</span>. 
+                Bienvenido al sistema de inteligencia de <span className="font-bold text-purple-600 underline decoration-purple-200">BI Facturacion MX</span>. 
                 Este panel no es solo una colección de datos; es una herramienta diseñada para auditar la salud operativa y financiera de la empresa a través del análisis de más de 50,000 transacciones consolidadas.
                 </p>
                 <p className="text-slate-600 leading-relaxed">

@@ -3,8 +3,8 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata = {
-  title: "SuperTienda Pro",
-  description: "Análisis de Datos",
+  title: "BI Facturación MX",
+  description: "Análisis de Datos de Business Intelligence para Facturación en México",
 };
 
 export default function RootLayout({

@@ -69,6 +69,7 @@ origins = [
     "http://172.20.64.1:3000",
     "http://172.30.32.1:3000", # Para subir desde Vercel el upload de xml
     "https://bi-facturacion-mx.vercel.app",
+    
 ]
 
 app.add_middleware(
