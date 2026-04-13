@@ -163,7 +163,7 @@ useEffect(() => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full items-start">
         
         {/* Gráfica 1: Tendencia de Ventas */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-[450px] flex flex-col min-w-0">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-112.5 flex flex-col min-w-0">
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 italic">Tendencia de Ventas (Estacionalidad Histórica)</h3>
           {mounted && (
           <div className="flex-1 w-full" style={{ minHeight: '350px' }}>
@@ -197,7 +197,7 @@ useEffect(() => {
 
 
         {/* Gráfica Derecha: EFICIENCIA DE DESPACHO (Lead Time) */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-[450px] flex flex-col min-w-0">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-112.5 flex flex-col min-w-0">
           <div className="flex justify-between items-start mb-6">
             <div>
               <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Eficiencia de Despacho (Lead Time)</h3>
