@@ -3,6 +3,7 @@ import shutil # Para guardar el archivo físicamente
 import pandas as pd
 import numpy as np
 import jwt
+import gc
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional
@@ -92,31 +93,38 @@ df_global: Optional[pd.DataFrame] = None
 
 def load_data() -> None:
     global df_global
-    path = "supertienda.csv"
+    path = "bi_facturacion_mx.csv"
     
+    # Inicializamos para asegurar existencia en el scope
     df_csv = pd.DataFrame()
     df_xml = pd.DataFrame()
 
     # --- FASE 1: CARGA E INGENIERÍA DE DATOS DESDE CSV ---
     if os.path.exists(path):
         try:
+            # Cargamos el CSV
             df_csv = pd.read_csv(path, encoding='utf-8-sig', low_memory=False)
-            df_csv.columns =[c.strip() for c in df_csv.columns]
+            df_csv.columns = [c.strip() for c in df_csv.columns]
             
-            cols_to_fix =['Sales', 'Profit', 'Shipping Cost', 'Pérdida']
+            # Limpieza y Optimización de Memoria (float64 -> float32)
+            cols_to_fix = ['Sales', 'Profit', 'Shipping Cost', 'Pérdida']
             for col in cols_to_fix:
                 if col not in df_csv.columns:
                     df_csv[col] = 0
+                
+                # Convertimos a numérico y forzamos float32 para ahorrar 50% de espacio en cada celda
                 df_csv[col] = pd.to_numeric(
                     df_csv[col].astype(str).str.replace(',', '').replace('-', '0'), 
                     errors='coerce'
-                ).fillna(0)
+                ).fillna(0).astype('float32')
             
             # --- SOLUCIÓN DEFINITIVA DE DESCUENTOS PARA CSV ---
             # 1. Limpiamos el texto "40.00%" para convertirlo en decimal 0.40
             if 'Discount' in df_csv.columns:
                 tasa_decimal = df_csv['Discount'].astype(str).str.replace('%', '').str.replace(' ', '')
                 tasa_decimal = pd.to_numeric(tasa_decimal, errors='coerce').fillna(0) / 100
+                # Optimizamos a float32
+                tasa_decimal = tasa_decimal.astype('float32')
             else:
                 tasa_decimal = 0.0
             
@@ -124,9 +132,9 @@ def load_data() -> None:
             df_csv['Tasa Descuento'] = tasa_decimal
             
             # 3. CALCULAMOS EL MONTO (Porque el CSV no lo tiene)
-            df_csv['Monto Descuento'] = df_csv['Sales'] * df_csv['Tasa Descuento']
+            df_csv['Monto Descuento'] = (df_csv['Sales'] * df_csv['Tasa Descuento']).astype('float32')
             
-            # Limpiamos columnas viejas para no confundir
+            # Limpiamos columnas viejas para liberar memoria inmediatamente
             if 'Discount' in df_csv.columns: df_csv = df_csv.drop(columns=['Discount'])
             if 'Discount rate' in df_csv.columns: df_csv = df_csv.drop(columns=['Discount rate'])
 
@@ -146,17 +154,20 @@ def load_data() -> None:
                 data_list = [r.dict() for r in results]
                 df_xml = pd.DataFrame(data_list)
                 
+                # Liberamos la lista de objetos original de SQLModel para ahorrar RAM
+                del results
+                del data_list
+
                 # --- SOLUCIÓN DEFINITIVA DE DESCUENTOS PARA XML ---
-                # El XML YA TIENE EL MONTO en la columna 'perdida' (así lo configuramos)
-                df_xml['Monto Descuento'] = df_xml['perdida']
+                # El XML YA TIENE EL MONTO en la columna 'perdida'
+                df_xml['Monto Descuento'] = df_xml['perdida'].astype('float32')
                 
-                # CALCULAMOS LA TASA (Al revés que en el CSV)
-                # Tasa = Monto / Ventas
+                # CALCULAMOS LA TASA (Monto / Ventas) con optimización de tipo
                 df_xml['Tasa Descuento'] = np.where(
                     df_xml['sales'] > 0, 
                     df_xml['Monto Descuento'] / df_xml['sales'], 
                     0.0
-                )
+                ).astype('float32')
                 
                 # Mapeo a nombres del Dashboard
                 df_xml = df_xml.rename(columns={
@@ -175,7 +186,12 @@ def load_data() -> None:
                     'metodo_pago': 'Metodo Pago',  
                     'raw_xml_data': 'Metadata XML' 
                 })
-                # Borramos las columnas viejas de Python para no ensuciar el Excel
+                # Forzamos tipos numéricos ligeros tras el rename
+                num_cols = ['Sales', 'Profit', 'Shipping Cost']
+                for c in num_cols:
+                    if c in df_xml.columns:
+                        df_xml[c] = df_xml[c].astype('float32')
+
                 df_xml = df_xml.drop(columns=['perdida'], errors='ignore')
                 df_xml['Order Date'] = pd.to_datetime(df_xml['Order Date'])
     except Exception as e:
@@ -183,16 +199,16 @@ def load_data() -> None:
 
     # --- FASE 3: CONSOLIDACIÓN HÍBRIDA ---
     if not df_csv.empty or not df_xml.empty:
+        # Concatenamos ambas fuentes
         df_global = pd.concat([df_csv, df_xml], ignore_index=True)
-        print(f"📊 Sistema Híbrido Listo: {len(df_global)} registros unificados.")
-    else:
-        df_global = None
-        print("❌ Error: No se detectaron datos.")
-
-    # --- FASE 3: CONSOLIDACIÓN HÍBRIDA ---
-    if not df_csv.empty or not df_xml.empty:
-        # Concatenamos ambas fuentes en una sola memoria global
-        df_global = pd.concat([df_csv, df_xml], ignore_index=True)
+        
+        # ELIMINACIÓN CRÍTICA: Borramos las fuentes parciales para liberar la RAM de Render
+        del df_csv
+        del df_xml
+        
+        # Limpieza forzada de memoria
+        gc.collect()
+        
         print(f"📊 Consolidación Híbrida Exitosa: {len(df_global)} registros totales en memoria.")
     else:
         df_global = None
@@ -876,6 +892,7 @@ async def upload_xml_zip(
         print(f"❌ Error en motor de ingesta XML: {e}")
         import traceback
         traceback.print_exc()
+        gc.collect()
         raise HTTPException(status_code=500, detail=f"Fallo en procesamiento: {str(e)}")
 
 
