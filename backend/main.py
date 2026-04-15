@@ -478,10 +478,10 @@ def get_top_discounts(user = Depends(get_current_user)):
 # main.py
 
 @app.get("/api/discount-margin-impact")
-def get_discount_impact(user = Depends(get_current_user)):
+def get_discount_impact(user: Dict[str, Any] = Depends(get_current_user)):
 
     empty_response = {
-        "data": [],
+        "data":[],
         "total_loss_formatted": "$0 USD"
     }
 
@@ -492,32 +492,37 @@ def get_discount_impact(user = Depends(get_current_user)):
         # 1. Trabajamos sobre una copia limpia
         df = df_global.copy()
 
-        # 2. LIMPIEZA FORZADA DE DESCUENTO
+        # 2. LIMPIEZA FORZADA DE DESCUENTO (Mantenemos tu robustez)
+        # Detectamos cómo se llama la columna actualmente en memoria
+        desc_col = 'Tasa Descuento' if 'Tasa Descuento' in df.columns else 'Discount'
+        
+        # Si por alguna razón crítica no existe ninguna, la creamos en cero para no tronar
+        if desc_col not in df.columns:
+            df[desc_col] = 0.0
+
         # Aseguramos que sea float. Si es string "10.00%", quitamos el %
-        if df['Discount'].dtype == 'object':
-            df['Discount'] = df['Discount'].astype(str).str.replace('%', '', regex=False)
-            df['Discount'] = pd.to_numeric(df['Discount'], errors='coerce').fillna(0) / 100
+        if df[desc_col].dtype == 'object':
+            df[desc_col] = df[desc_col].astype(str).str.replace('%', '', regex=False)
+            df[desc_col] = pd.to_numeric(df[desc_col], errors='coerce').fillna(0) / 100
         else:
-            df['Discount'] = pd.to_numeric(df['Discount'], errors='coerce').fillna(0)
+            df[desc_col] = pd.to_numeric(df[desc_col], errors='coerce').fillna(0)
 
         # 3. DEFINICIÓN DE RANGOS (BINS)
-        # Usamos un rango ligeramente superior a 1.0 (1.1) por si hay errores en el CSV
-        bins = [-0.001, 0, 0.05, 0.10, 0.15, 0.20, 2.0] 
-        labels = ["0%", "1-5%", "6-10%", "11-15%", "16-20%", "Más de 20%"]
+        bins =[-0.001, 0, 0.05, 0.10, 0.15, 0.20, 2.0] 
+        labels =["0%", "1-5%", "6-10%", "11-15%", "16-20%", "Más de 20%"]
         
-        df['Discount_Group'] = pd.cut(df['Discount'], bins=bins, labels=labels)
+        # Aplicamos los rangos a la columna correcta
+        df['Discount_Group'] = pd.cut(df[desc_col], bins=bins, labels=labels)
 
-        # 4. AGRUPACIÓN Y SUMA DE PROFIT
-        # observed=False es necesario en versiones nuevas de pandas para categoric data
+        # 4. AGRUPACIÓN Y SUMA DE PROFIT (En este caso, Pérdida)
         impact = df.groupby('Discount_Group', observed=False)['Pérdida'].sum().reset_index()
 
-        # 5. CÁLCULO DE PÉRDIDA TOTAL (Suma de los Profit negativos en los grupos)
-        # Según tu imagen, nos interesa la pérdida en los grupos de alto descuento
+        # 5. CÁLCULO DE PÉRDIDA TOTAL
         loss_df = impact[impact['Pérdida'] < 0]
         total_loss = float(loss_df['Pérdida'].sum())
 
-        # 6. CONVERSIÓN A TIPOS NATIVOS (Vital para evitar Error 500)
-        chart_data = []
+        # 6. CONVERSIÓN A TIPOS NATIVOS
+        chart_data =[]
         for _, row in impact.iterrows():
             chart_data.append({
                 "group": str(row['Discount_Group']),
@@ -528,7 +533,7 @@ def get_discount_impact(user = Depends(get_current_user)):
         
         return {
             "data": chart_data,
-            "total_loss_formatted": f"${total_loss:,.0f} USD" # Formato: $-924...
+            "total_loss_formatted": f"${total_loss:,.0f} USD"
         }
 
     except Exception as e:
@@ -537,68 +542,63 @@ def get_discount_impact(user = Depends(get_current_user)):
         print(traceback.format_exc())
         return empty_response
 
-
 # Para la pérdida neta real (Profit)
 @app.get("/api/discount-margin-netimpact")
-def get_discount_net_impact(user = Depends(get_current_user)):
+def get_discount_net_impact(user: Dict[str, Any] = Depends(get_current_user)):
 
     empty_response = {
-        "customer_list": [],
-        "segmentation": [],
-        "summary": {"total_customers": 0}
+        "data":[],
+        "total_net_loss_formatted": "$0 USD"
     }
 
     if df_global is None or df_global.empty:
         return empty_response
     
     try:
-        # 1. Trabajamos sobre una copia limpia
         df = df_global.copy()
 
         # 2. LIMPIEZA FORZADA DE DESCUENTO
-        # Aseguramos que sea float. Si es string "10.00%", quitamos el %
-        if df['Discount'].dtype == 'object':
-            df['Discount'] = df['Discount'].astype(str).str.replace('%', '', regex=False)
-            df['Discount'] = pd.to_numeric(df['Discount'], errors='coerce').fillna(0) / 100
+        desc_col = 'Tasa Descuento' if 'Tasa Descuento' in df.columns else 'Discount'
+        if desc_col not in df.columns:
+            df[desc_col] = 0.0
+
+        if df[desc_col].dtype == 'object':
+            df[desc_col] = df[desc_col].astype(str).str.replace('%', '', regex=False)
+            df[desc_col] = pd.to_numeric(df[desc_col], errors='coerce').fillna(0) / 100
         else:
-            df['Discount'] = pd.to_numeric(df['Discount'], errors='coerce').fillna(0)
+            df[desc_col] = pd.to_numeric(df[desc_col], errors='coerce').fillna(0)
 
         # 3. DEFINICIÓN DE RANGOS (BINS)
-        # Usamos un rango ligeramente superior a 1.0 (1.1) por si hay errores en el CSV
-        bins = [-0.001, 0, 0.05, 0.10, 0.15, 0.20, 2.0] 
-        labels = ["0%", "1-5%", "6-10%", "11-15%", "16-20%", "Más de 20%"]
+        bins =[-0.001, 0, 0.05, 0.10, 0.15, 0.20, 2.0] 
+        labels =["0%", "1-5%", "6-10%", "11-15%", "16-20%", "Más de 20%"]
         
-        df['Discount_Group'] = pd.cut(df['Discount'], bins=bins, labels=labels)
+        df['Discount_Group'] = pd.cut(df[desc_col], bins=bins, labels=labels)
 
         # 4. AGRUPACIÓN Y SUMA DE PROFIT
-        # observed=False es necesario en versiones nuevas de pandas para categoric data
         impact = df.groupby('Discount_Group', observed=False)['Profit'].sum().reset_index()
 
-        # 5. CÁLCULO DE PÉRDIDA TOTAL (Suma de los Profit negativos en los grupos)
-        # Según tu imagen, nos interesa la pérdida en los grupos de alto descuento
+        # 5. CÁLCULO DE PÉRDIDA TOTAL
         loss_df = impact[impact['Profit'] < 0]
         total_net_loss = float(loss_df['Profit'].sum())
 
-        # 6. CONVERSIÓN A TIPOS NATIVOS (Vital para evitar Error 500)
-        chart_net_data = []
+        # 6. CONVERSIÓN A TIPOS NATIVOS
+        chart_net_data =[]
         for _, row in impact.iterrows():
             chart_net_data.append({
                 "group": str(row['Discount_Group']),
                 "profit": round(float(row['Profit']), 2)
             })
 
-        print(f">>> API Descuentos: Procesados {len(df)} registros. Profit: {total_net_loss}")
+        print(f">>> API Descuentos Netos: Procesados {len(df)} registros. Profit: {total_net_loss}")
         
         return {
             "data": chart_net_data,
-            "total_net_loss_formatted": f"${total_net_loss:,.0f} USD" # Formato: $-848,900.00
+            "total_net_loss_formatted": f"${total_net_loss:,.0f} USD"
         }
-
-
 
     except Exception as e:
         import traceback
-        print(f"CRASH EN DESCUENTOS: {str(e)}")
+        print(f"CRASH EN DESCUENTOS NETOS: {str(e)}")
         print(traceback.format_exc())
         return empty_response
 
@@ -963,3 +963,40 @@ def get_data_explorer(
         "page": page,
         "pages": (total_count // limit) + 1 if limit > 0 else 1
     }
+
+
+    # --- RUTA: BORRADO MASIVO DE TRANSACCIONES (Admin Only) ---
+
+# --- RUTA: BORRADO MASIVO DE TRANSACCIONES (Versión sin Bitácora) ---
+
+@app.post("/api/admin/bulk-delete-transactions")
+async def bulk_delete_transactions(
+    ids: List[int], 
+    admin: User = Depends(require_admin)
+):
+    """
+    Elimina permanentemente registros por ID sin registro de bitácora.
+    """
+    if not ids:
+        raise HTTPException(status_code=400, detail="No se proporcionaron IDs.")
+
+    try:
+        with Session(engine) as session:
+            # Buscamos y borramos directamente
+            statement = select(TransactionXML).where(TransactionXML.id.in_(ids))
+            targets = session.exec(statement).all()
+            
+            count = len(targets)
+            for t in targets:
+                session.delete(t)
+            
+            session.commit()
+            
+        # Actualizamos la memoria global para que las gráficas cambien al instante
+        load_data()
+        
+        return {"status": "success", "deleted_count": count}
+
+    except Exception as e:
+        print(f"❌ Error en borrado masivo: {e}")
+        raise HTTPException(status_code=500, detail="Error al eliminar los datos.")
