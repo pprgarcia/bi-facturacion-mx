@@ -15,9 +15,10 @@ import {
 } from '@tanstack/react-table';
 import { 
   Search, ChevronLeft, ChevronRight, FileSpreadsheet, 
-  ArrowUpDown, ArrowUp, ArrowDown 
+  ArrowUpDown, ArrowUp, ArrowDown, Trash2, Database
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useAuth } from '@/context/AuthContext';  
 
 // --- INTERFACES ---
 interface XMLMetadata {
@@ -55,6 +56,7 @@ export default function DataExplorer() {
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 50 });
   const [totalRows, setTotalRows] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const { user } = useAuth();
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -223,29 +225,88 @@ export default function DataExplorer() {
     pageCount: Math.ceil(totalRows / pagination.pageSize),
   });
 
+  const handleBulkDelete = async () => {
+    // Obtenemos los IDs de las filas seleccionadas
+    const selectedIds = table.getSelectedRowModel().rows.map(r => r.original.id);
+    
+    if (selectedIds.length === 0) return;
+
+    if (!window.confirm(`¿Estás seguro de ELIMINAR PERMANENTEMENTE ${selectedIds.length} registros? Esta acción no se puede deshacer y afectará a todas las gráficas.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bulk-delete-transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selectedIds),
+        credentials: 'include'
+      });
+
+      if (res.ok) {
+        alert("Registros eliminados correctamente.");
+        table.resetRowSelection(); // Limpiamos los checks
+        fetchBatch(); // Recargamos la tabla
+      } else {
+        alert("Error: No tienes permisos para realizar esta acción.");
+      }
+    } catch {
+      alert("Error de comunicación con el servidor.");
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+      {/* 1. BUSCADOR UNIVERSAL (Ahora solo y despejado) */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text" 
-            placeholder="Buscador Universal..." 
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+            placeholder="Buscador Universal de Auditoría..." 
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
             onChange={(e) => {
               setGlobalFilter(e.target.value);
               setPagination(prev => ({ ...prev, pageIndex: 0 }));
             }}
           />
         </div>
-        <button 
-          onClick={exportToExcel}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-xs font-black transition-all shadow-lg active:scale-95"
-        >
-          <FileSpreadsheet size={16} /> 
-          {Object.keys(rowSelection).length > 0 ? `Exportar Selección (${Object.keys(rowSelection).length})` : "Exportar Auditoría Completa"}
-        </button>
       </div>
+
+      {/* 2. BARRA DE ACCIONES (Solo aparece si hay selección) */}
+      {Object.keys(rowSelection).length > 0 && (
+        <div className="bg-slate-900 text-white px-6 py-4 rounded-3xl flex justify-between items-center shadow-2xl animate-in fade-in slide-in-from-top-4 border border-slate-700">
+          <div className="flex items-center gap-3">
+            <div className="bg-purple-600 p-2 rounded-xl">
+              <Database size={18} className="text-white" />
+            </div>
+            <span className="text-sm font-bold">
+              {Object.keys(rowSelection).length} registros seleccionados
+            </span>
+          </div>
+          
+          <div className="flex gap-3">
+            {/* BOTÓN EXPORTAR (Si quieres que solo el Admin exporte, envuélvelo en el check de rol) */}
+            {(user?.role === 'admin' || user?.role === 'owner') && (
+              <>
+                <button 
+                  onClick={handleBulkDelete}
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-5 py-2 rounded-xl text-xs font-black transition-all shadow-lg"
+                >
+                  <Trash2 size={14} /> ELIMINAR
+                </button>
+                
+                <button 
+                  onClick={exportToExcel}
+                  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-xl text-xs font-black transition-all border border-white/10"
+                >
+                  <FileSpreadsheet size={14} /> EXPORTAR SELECCIÓN
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
