@@ -258,18 +258,31 @@ export default function DataExplorer() {
   return (
     <div className="space-y-4">
       {/* 1. BUSCADOR UNIVERSAL (Ahora solo y despejado) */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+        {/* LADO IZQUIERDO: Buscador con ancho controlado */}
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text" 
             placeholder="Buscador Universal de Auditoría..." 
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 transition-all placeholder:text-slate-400"
             onChange={(e) => {
               setGlobalFilter(e.target.value);
               setPagination(prev => ({ ...prev, pageIndex: 0 }));
             }}
           />
+        </div>
+
+        {/* LADO DERECHO: Contador de Registros Estilizado */}
+        <div className="flex items-center gap-3 bg-slate-50 px-5 py-2 rounded-2xl border border-slate-100 shadow-inner group transition-all hover:bg-purple-50">
+          <div className="flex flex-col items-end">
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter leading-none mb-1 group-hover:text-purple-400">
+              Registros Consolidados
+            </span>
+            <span className="text-base font-black text-slate-700 leading-none tabular-nums group-hover:text-purple-600">
+              {totalRows.toLocaleString()}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -374,7 +387,7 @@ export default function DataExplorer() {
           <span className="text-[10px] text-slate-400 font-bold">Total: {totalRows.toLocaleString()}</span>
           <div className="flex items-center gap-2">
             <button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className="p-2 border rounded-lg bg-white disabled:opacity-20 shadow-sm"><ChevronLeft size={16}/></button>
-            <span className="text-xs font-black px-4">{pagination.pageIndex + 1} / {Math.ceil(totalRows / pagination.pageSize)}</span>
+            <span className="text-xs font-black px-4 text-slate-800">{pagination.pageIndex + 1} / {Math.ceil(totalRows / pagination.pageSize)}</span>
             <button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className="p-2 border rounded-lg bg-white disabled:opacity-20 shadow-sm"><ChevronRight size={16}/></button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { Package, Users, Globe, FileText, Menu, X, LogOut, Upload, ShieldAlert  } from 'lucide-react'; 
+import { Package, Users, Globe, FileText, Menu, X, LogOut, Upload, Search, ShieldAlert  } from 'lucide-react'; 
 import DashboardView from '@/components/DashboardView';
 import DiscountImpactView from '@/components/DiscountImpactView';
 import ProductsView from '@/components/ProductsView';
@@ -162,6 +162,27 @@ export default function MainApp() {
       <main className="flex-1 md:ml-64 p-6 md:p-8 overflow-x-hidden flex flex-col min-h-screen">
         <header className="flex justify-between items-center mb-10 shrink-0 pr-14 md:pr-0">
           <div>
+            {/* --- BLOQUE NUEVO: Solo para Auditoría --- */}
+            {activeTab === 'audit' && (
+              <div className="mb-4 flex items-center gap-4">
+                {/* Icono más grande y con más presencia */}
+                <div className="p-3 bg-purple-600 text-white rounded-2xl shadow-lg shadow-purple-100">
+                  <Search size={22} /> 
+                </div>
+                
+                <div>
+                  {/* Título imponente en mayúsculas */}
+                  <span className="text-purple-600 text-xl font-black uppercase tracking-wider block">
+                    Módulo de Integridad de Datos
+                  </span>
+                  {/* El saludo lo podemos dejar abajo como un subtítulo sutil */}
+                  <p className="text-slate-500 text-sm mt-0.5">
+                    Bienvenido, {user.full_name}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">
               {titles[activeTab]}
             </h1>
