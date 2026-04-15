@@ -36,29 +36,32 @@ export default function GovernanceView() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   // --- FUNCIÓN DE CARGA BLINDADA CON USECALLBACK ---
-  const fetchData = useCallback(async (): Promise<void> => {
-    if (!API_URL) return;
+const fetchData = useCallback(async (signal?: AbortSignal): Promise<void> => {
+  if (!API_URL) return;
+  
+  setLoading(true);
+  try {
+    const [uRes, lRes] = await Promise.all([
+      fetch(`${API_URL}/api/auth/users/all`, { credentials: 'include', signal }), // <--- Pasar señal
+      fetch(`${API_URL}/api/auth/audit-logs`, { credentials: 'include', signal }) // <--- Pasar señal
+    ]);
     
-    setLoading(true);
-    try {
-      const [uRes, lRes] = await Promise.all([
-        fetch(`${API_URL}/api/auth/users/all`, { credentials: 'include' }),
-        fetch(`${API_URL}/api/auth/audit-logs`, { credentials: 'include' })
-      ]);
-      
-      if (uRes.ok) setUsers(await uRes.json());
-      if (lRes.ok) setLogs(await lRes.json());
-    } catch (error) {
+    if (uRes.ok) setUsers(await uRes.json());
+    if (lRes.ok) setLogs(await lRes.json());
+    } catch (error: unknown) { // <--- CAMBIA 'any' por 'unknown'
+      if (error instanceof Error && error.name === 'AbortError') return; 
       console.error("Error cargando gobernanza:", error);
     } finally {
-      setLoading(false);
-    }
-  }, [API_URL]); // Solo cambia si la URL del API cambia
+    setLoading(false);
+  }
+}, [API_URL]);
 
-  // --- EFECTO DE CARGA INICIAL ---
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]); // Ahora fetchData es una dependencia válida y estable
+useEffect(() => {
+  const controller = new AbortController();
+  fetchData(controller.signal);
+
+  return () => controller.abort(); // Cancela la petición si cambias de pestaña rápido
+}, [fetchData]);
 
   // --- MANEJADOR DE ACCIONES ---
   const handleUpdateStatus = async (userId: string, newStatus: string, newRole?: string): Promise<void> => {

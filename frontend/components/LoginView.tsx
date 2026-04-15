@@ -61,7 +61,7 @@ export default function LoginView() {
         {/* Logo / Título */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">
-            Supertienda <span className="text-indigo-400">BI</span>
+            BI <span className="text-indigo-400">Facturación</span>
           </h1>
           <p className="text-slate-400">Sistema de Análisis y Control de Datos</p>
         </div>
@@ -129,7 +129,7 @@ export default function LoginView() {
         </div>
 
         <p className="mt-8 text-center text-slate-500 text-xs">
-          &copy; 2026 Supertienda Analytics. Todos los derechos reservados.
+          &copy; 2026 BI Facturación Analytics. Todos los derechos reservados.
         </p>
       </div>
     </div>

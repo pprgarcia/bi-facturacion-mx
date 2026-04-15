@@ -3,7 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata = {
-  title: "BI Facturación MX",
+  title: "BI Facturacion MX",
   description: "Análisis de Datos de Business Intelligence para Facturación en México",
 };
 

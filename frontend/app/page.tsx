@@ -12,6 +12,8 @@ import { useAuth } from '@/context/AuthContext';
 import LoginView from '@/components/LoginView';
 import UploadView from '@/components/UploadView';
 import GovernanceView from '@/components/GovernanceView';
+import DataExplorer from '@/components/DataExplorer';
+import { Database } from 'lucide-react'; 
 
 interface SidebarBtnProps {
   icon: React.ReactElement;
@@ -115,6 +117,12 @@ export default function MainApp() {
           <SidebarBtn icon={<Users/>} label="Clientes" active={activeTab === 'clients'} onClick={() => handleTabChange('clients')} />
           <SidebarBtn icon={<Globe/>} label="Estados" active={activeTab === 'countries'} onClick={() => handleTabChange('countries')} />
           <SidebarBtn icon={<FileText/>} label="Conclusiones" active={activeTab === 'conclusions'} onClick={() => handleTabChange('conclusions')} />
+          <SidebarBtn 
+            icon={<Database/>} 
+            label="Auditoría" 
+            active={activeTab === 'audit'} 
+            onClick={() => handleTabChange('audit')} 
+          />
         </nav>
 
         {/* --- 3. SECCIÓN DE ADMINISTRACIÓN (Solo visible para Admin/Owner) --- */}
@@ -182,6 +190,7 @@ export default function MainApp() {
           {activeTab === 'clients' && <CustomersView />}
           {activeTab === 'countries' && <CountriesView />}
           {activeTab === 'conclusions' && <ConclusionsView />}
+          {activeTab === 'audit' && <DataExplorer />}
           {activeTab === 'upload' && <UploadView />}
           {activeTab === 'governance' && <GovernanceView />}
         </div>

@@ -7,6 +7,9 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional
 
+# Agrega esta línea para eliminar la advertencia de "Downcasting"
+pd.set_option('future.no_silent_downcasting', True)
+
 from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -56,7 +59,7 @@ async def lifespan(app: FastAPI):
 
 # --- INSTANCIA DE LA APP ---
 app = FastAPI(
-    title="Supertienda BI API",
+    title="BI Facturacion",
     description="API de Análisis de Datos con Autenticación de Grado Enterprise",
     version="2.0.0",
     lifespan=lifespan
@@ -88,15 +91,9 @@ app.include_router(auth_router)
 df_global: Optional[pd.DataFrame] = None
 
 def load_data() -> None:
-    """
-    Motor de unificación de datos: Combina el legado histórico (CSV) 
-    con la operación actual almacenada en Postgres (XML).
-    """
-    
     global df_global
-    path = "bi_facturacion_mx.csv"
+    path = "supertienda.csv"
     
-    # Inicialización de DataFrames vacíos para evitar errores de referencia
     df_csv = pd.DataFrame()
     df_xml = pd.DataFrame()
 
@@ -104,10 +101,9 @@ def load_data() -> None:
     if os.path.exists(path):
         try:
             df_csv = pd.read_csv(path, encoding='utf-8-sig', low_memory=False)
-            df_csv.columns = [c.strip() for c in df_csv.columns]
+            df_csv.columns =[c.strip() for c in df_csv.columns]
             
-            # Limpieza y tipado de métricas financieras
-            cols_to_fix = ['Sales', 'Profit', 'Shipping Cost', 'Pérdida']
+            cols_to_fix =['Sales', 'Profit', 'Shipping Cost', 'Pérdida']
             for col in cols_to_fix:
                 if col not in df_csv.columns:
                     df_csv[col] = 0
@@ -116,7 +112,24 @@ def load_data() -> None:
                     errors='coerce'
                 ).fillna(0)
             
-            # Normalización de fechas del legado
+            # --- SOLUCIÓN DEFINITIVA DE DESCUENTOS PARA CSV ---
+            # 1. Limpiamos el texto "40.00%" para convertirlo en decimal 0.40
+            if 'Discount' in df_csv.columns:
+                tasa_decimal = df_csv['Discount'].astype(str).str.replace('%', '').str.replace(' ', '')
+                tasa_decimal = pd.to_numeric(tasa_decimal, errors='coerce').fillna(0) / 100
+            else:
+                tasa_decimal = 0.0
+            
+            # 2. Guardamos la Tasa Limpia
+            df_csv['Tasa Descuento'] = tasa_decimal
+            
+            # 3. CALCULAMOS EL MONTO (Porque el CSV no lo tiene)
+            df_csv['Monto Descuento'] = df_csv['Sales'] * df_csv['Tasa Descuento']
+            
+            # Limpiamos columnas viejas para no confundir
+            if 'Discount' in df_csv.columns: df_csv = df_csv.drop(columns=['Discount'])
+            if 'Discount rate' in df_csv.columns: df_csv = df_csv.drop(columns=['Discount rate'])
+
             df_csv['Order Date'] = pd.to_datetime(df_csv['Order Date'], dayfirst=True, errors='coerce')
             df_csv['Ship Date'] = pd.to_datetime(df_csv['Ship Date'], dayfirst=True, errors='coerce')
             df_csv = df_csv.dropna(subset=['Order Date'])
@@ -127,16 +140,25 @@ def load_data() -> None:
     # --- FASE 2: CARGA DESDE VERCEL POSTGRES (OPERACIÓN XML) ---
     try:
         with Session(engine) as session:
-            # Importante: TransactionXML debe estar importado al inicio de main.py
             statement = select(TransactionXML)
             results = session.exec(statement).all()
-            
             if results:
-                # Convertimos registros SQLModel a Diccionario y luego a DataFrame
                 data_list = [r.dict() for r in results]
                 df_xml = pd.DataFrame(data_list)
                 
-                # Mapeo de columnas de Base de Datos a Nombres de Dashboard
+                # --- SOLUCIÓN DEFINITIVA DE DESCUENTOS PARA XML ---
+                # El XML YA TIENE EL MONTO en la columna 'perdida' (así lo configuramos)
+                df_xml['Monto Descuento'] = df_xml['perdida']
+                
+                # CALCULAMOS LA TASA (Al revés que en el CSV)
+                # Tasa = Monto / Ventas
+                df_xml['Tasa Descuento'] = np.where(
+                    df_xml['sales'] > 0, 
+                    df_xml['Monto Descuento'] / df_xml['sales'], 
+                    0.0
+                )
+                
+                # Mapeo a nombres del Dashboard
                 df_xml = df_xml.rename(columns={
                     'order_id': 'Order ID',
                     'order_date': 'Order Date',
@@ -147,15 +169,25 @@ def load_data() -> None:
                     'sales': 'Sales',
                     'profit': 'Profit',
                     'shipping_cost': 'Shipping Cost',
-                    'perdida': 'Pérdida',
                     'country': 'Country',
-                    'discount_rate': 'Discount rate'
+                    'segmento': 'Segment',         
+                    'zona_region': 'Market',       
+                    'metodo_pago': 'Metodo Pago',  
+                    'raw_xml_data': 'Metadata XML' 
                 })
-                
-                # Aseguramos que la fecha de la DB sea tratada como datetime en Pandas
+                # Borramos las columnas viejas de Python para no ensuciar el Excel
+                df_xml = df_xml.drop(columns=['perdida'], errors='ignore')
                 df_xml['Order Date'] = pd.to_datetime(df_xml['Order Date'])
     except Exception as e:
-        print(f"⚠️ Error consultando transacciones XML en Postgres: {e}")
+        print(f"⚠️ Error consultando transacciones XML: {e}")
+
+    # --- FASE 3: CONSOLIDACIÓN HÍBRIDA ---
+    if not df_csv.empty or not df_xml.empty:
+        df_global = pd.concat([df_csv, df_xml], ignore_index=True)
+        print(f"📊 Sistema Híbrido Listo: {len(df_global)} registros unificados.")
+    else:
+        df_global = None
+        print("❌ Error: No se detectaron datos.")
 
     # --- FASE 3: CONSOLIDACIÓN HÍBRIDA ---
     if not df_csv.empty or not df_xml.empty:
@@ -170,7 +202,7 @@ def load_data() -> None:
 
 @app.get("/")
 def read_root():
-    return {"status": "online", "message": "SuperTienda BI Intelligence Unit"}
+    return {"status": "online", "message": "BI Facturacion Intelligence Unit"}
 @app.get("/api/kpis")
 def get_kpis(user: Dict[str, Any] = Depends(get_current_user)):
     """
@@ -885,30 +917,49 @@ def update_page_insight(
         session.commit()
         return {"status": "success"}
 
+""" TABLA DE EXPLORACIÓN DE DATOS """
 
 @app.get("/api/admin/data-explorer")
 def get_data_explorer(
+    request: Request,
     page: int = 1, 
     limit: int = 100, 
-    user: User = Depends(require_admin)
+    search: Optional[str] = None,
+    sort_by: Optional[str] = "Order Date", # Columna por defecto
+    sort_order: Optional[str] = "desc",    # Orden por defecto
+    user: User = Depends(get_current_user)
 ):
-    """
-    Devuelve la tabla completa unificada (CSV + XML) para auditoría visual.
-    """
     if df_global is None or df_global.empty:
-        return {"data": [], "total": 0}
+        return {"items": [], "total": 0}
 
-    # Calculamos el inicio y fin para la paginación
+    df_filtered = df_global.copy()
+    
+    # 1. Filtro Global y por columna (mismo código anterior)
+    if search:
+        s = search.lower()
+        df_filtered = df_filtered[df_filtered.apply(lambda row: row.astype(str).str.contains(s, case=False).any(), axis=1)]
+
+    params = request.query_params
+    for key, value in params.items():
+        if key not in ['page', 'limit', 'search', 'sort_by', 'sort_order'] and key in df_filtered.columns:
+            if value:
+                df_filtered = df_filtered[df_filtered[key].astype(str).str.contains(value, case=False)]
+
+    # 2. LÓGICA DE ORDENAMIENTO (NUEVO)
+    if sort_by in df_filtered.columns:
+        ascending = True if sort_order == "asc" else False
+        df_filtered = df_filtered.sort_values(by=sort_by, ascending=ascending)
+
+    # 3. Paginación y Limpieza
+    total_count = len(df_filtered)
     start = (page - 1) * limit
     end = start + limit
-
-    # Convertimos a JSON solo el pedazo que necesitamos
-    # Usamos .replace para manejar valores NaN o Infinitos que rompen el JSON
-    slice_df = df_global.iloc[start:end].replace([np.inf, -np.inf], 0).fillna(0)
+    
+    batch = df_filtered.iloc[start:end].replace([np.inf, -np.inf], 0).fillna(0).infer_objects(copy=False)
     
     return {
-        "data": slice_df.to_dict(orient="records"),
-        "total_records": len(df_global),
+        "items": batch.to_dict(orient="records"),
+        "total": total_count,
         "page": page,
-        "pages": (len(df_global) // limit) + 1
+        "pages": (total_count // limit) + 1 if limit > 0 else 1
     }
