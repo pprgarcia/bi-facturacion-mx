@@ -3,13 +3,9 @@ import shutil # Para guardar el archivo físicamente
 import pandas as pd
 import numpy as np
 import jwt
-import gc
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional
-
-# Agrega esta línea para eliminar la advertencia de "Downcasting"
-pd.set_option('future.no_silent_downcasting', True)
 
 from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,18 +17,21 @@ from datetime import datetime, timezone
 # 1. Librerías externas (SQLModel)
 from sqlmodel import Session, select 
 
-# 2. Unifica todas las importaciones de models en UNA SOLA LÍNEA
-from models import create_db_and_tables, engine, User, PageInsight, TransactionXML
+# 2. Tus Modelos y el Motor (de models.py)
+from models import create_db_and_tables, engine, User, PageInsight
 
-# 3. Importa el motor de XML
+# agrega TransactionXML al import de models (motor de datos para XML)
 from xml_engine import universal_xml_parser
+from models import TransactionXML
 
-# 4. Importa la lógica de seguridad
+# 3. Tu Lógica de Seguridad (de auth.py)
 from auth import auth_router, get_current_user, require_admin
 
 # Importaciones para manejo de archivos y procesamiento de XML
 import zipfile
 import io
+from xml_engine import universal_xml_parser # Asegúrate que el nombre coincida
+from models import TransactionXML # La tabla que creamos
 
 # --- LÓGICA DE INICIO Y CIERRE (LIFESPAN) ---
 @asynccontextmanager
@@ -42,7 +41,7 @@ async def lifespan(app: FastAPI):
     1. Carga los datos del CSV a memoria principal.
     2. Verifica y crea las tablas en Vercel Postgres.
     """
-    print("🚀 Iniciando Sistema de Inteligencia BI_Facturación_MX...")
+    print("🚀 Iniciando Sistema de Inteligencia SuperTienda BI...")
 
     
     # Inicializar Base de Datos
@@ -60,7 +59,7 @@ async def lifespan(app: FastAPI):
 
 # --- INSTANCIA DE LA APP ---
 app = FastAPI(
-    title="BI Facturacion",
+    title="Supertienda BI API",
     description="API de Análisis de Datos con Autenticación de Grado Enterprise",
     version="2.0.0",
     lifespan=lifespan
@@ -72,8 +71,7 @@ origins = [
     "http://127.0.0.1:3000",
     "http://172.20.64.1:3000",
     "http://172.30.32.1:3000", # Para subir desde Vercel el upload de xml
-    "https://bi-facturacion-mx.vercel.app",
-    
+    "https://supertienda-dashboard-analisis.vercel.app",
 ]
 
 app.add_middleware(
@@ -92,13 +90,16 @@ app.include_router(auth_router)
 df_global: Optional[pd.DataFrame] = None
 
 def load_data() -> None:
+    """
+    Motor de unificación de datos: Combina el legado histórico (CSV) 
+    con la operación actual almacenada en Postgres (XML).
+    """
     global df_global
-    path = "bi_facturacion_mx.csv"
-
+    path = "supertienda.csv"
+    
     # Inicialización de DataFrames vacíos para evitar errores de referencia
     df_csv = pd.DataFrame()
     df_xml = pd.DataFrame()
-    if not os.path.exists(path): return
 
     # --- FASE 1: CARGA E INGENIERÍA DE DATOS DESDE CSV ---
     if os.path.exists(path):
@@ -115,46 +116,19 @@ def load_data() -> None:
                     df_csv[col].astype(str).str.replace(',', '').replace('-', '0'), 
                     errors='coerce'
                 ).fillna(0)
-                
-                # Convertimos a numérico y forzamos float32 para ahorrar 50% de espacio en cada celda
-                df_csv[col] = pd.to_numeric(
-                    df_csv[col].astype(str).str.replace(',', '').replace('-', '0'), 
-                    errors='coerce'
-                ).fillna(0).astype('float32')
             
-            # --- SOLUCIÓN DEFINITIVA DE DESCUENTOS PARA CSV ---
-            # 1. Limpiamos el texto "40.00%" para convertirlo en decimal 0.40
-            if 'Discount' in df_csv.columns:
-                tasa_decimal = df_csv['Discount'].astype(str).str.replace('%', '').str.replace(' ', '')
-                tasa_decimal = pd.to_numeric(tasa_decimal, errors='coerce').fillna(0) / 100
-                # Optimizamos a float32
-                tasa_decimal = tasa_decimal.astype('float32')
-            else:
-                tasa_decimal = 0.0
-            
-            # 2. Guardamos la Tasa Limpia
-            df_csv['Tasa Descuento'] = tasa_decimal
-            
-            # 3. CALCULAMOS EL MONTO (Porque el CSV no lo tiene)
-            df_csv['Monto Descuento'] = (df_csv['Sales'] * df_csv['Tasa Descuento']).astype('float32')
-            
-            # Limpiamos columnas viejas para liberar memoria inmediatamente
-            if 'Discount' in df_csv.columns: df_csv = df_csv.drop(columns=['Discount'])
-            if 'Discount rate' in df_csv.columns: df_csv = df_csv.drop(columns=['Discount rate'])
-
-            df_csv['Order Date'] = pd.to_datetime(df_csv['Order Date'], dayfirst=False, errors='coerce')
-            df_csv['Ship Date'] = pd.to_datetime(df_csv['Ship Date'], dayfirst=False, errors='coerce')
+            # Normalización de fechas del legado
+            df_csv['Order Date'] = pd.to_datetime(df_csv['Order Date'], dayfirst=True, errors='coerce')
+            df_csv['Ship Date'] = pd.to_datetime(df_csv['Ship Date'], dayfirst=True, errors='coerce')
             df_csv = df_csv.dropna(subset=['Order Date'])
             
-            df_global = df_csv
-            print(f"📊 Dataset cargado: {len(df_global)} registros.")
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"⚠️ Error procesando CSV histórico: {e}")
 
     # --- FASE 2: CARGA DESDE VERCEL POSTGRES (OPERACIÓN XML) ---
     try:
         with Session(engine) as session:
-             # Importante: TransactionXML debe estar importado al inicio de main.py
+            # Importante: TransactionXML debe estar importado al inicio de main.py
             statement = select(TransactionXML)
             results = session.exec(statement).all()
             
@@ -163,22 +137,7 @@ def load_data() -> None:
                 data_list = [r.dict() for r in results]
                 df_xml = pd.DataFrame(data_list)
                 
-                # Liberamos la lista de objetos original de SQLModel para ahorrar RAM
-                del results
-                del data_list
-
-                # --- SOLUCIÓN DEFINITIVA DE DESCUENTOS PARA XML ---
-                # El XML YA TIENE EL MONTO en la columna 'perdida'
-                df_xml['Monto Descuento'] = df_xml['perdida'].astype('float32')
-                
-                # CALCULAMOS LA TASA (Monto / Ventas) con optimización de tipo
-                df_xml['Tasa Descuento'] = np.where(
-                    df_xml['sales'] > 0, 
-                    df_xml['Monto Descuento'] / df_xml['sales'], 
-                    0.0
-                ).astype('float32')
-                
-                # Mapeo a nombres del Dashboard
+                # Mapeo de columnas de Base de Datos a Nombres de Dashboard
                 df_xml = df_xml.rename(columns={
                     'order_id': 'Order ID',
                     'order_date': 'Order Date',
@@ -187,38 +146,20 @@ def load_data() -> None:
                     'sub_category': 'Sub-Category',
                     'product_name': 'Product Name',
                     'sales': 'Sales',
-                    'quantity': 'Quantity',
                     'profit': 'Profit',
                     'shipping_cost': 'Shipping Cost',
-                    'country': 'Country',
-                    'segmento': 'Segment',         
-                    'zona_region': 'Market',       
-                    'metodo_pago': 'Metodo Pago',  
-                    'raw_xml_data': 'Metadata XML' 
+                    'perdida': 'Pérdida',
+                    'country': 'Country'
                 })
-                # Forzamos tipos numéricos ligeros tras el rename
-                num_cols = ['Sales', 'Profit', 'Shipping Cost']
-                for c in num_cols:
-                    if c in df_xml.columns:
-                        df_xml[c] = df_xml[c].astype('float32')
-
-                df_xml = df_xml.drop(columns=['perdida'], errors='ignore')
+                # Aseguramos que la fecha de la DB sea tratada como datetime en Pandas
                 df_xml['Order Date'] = pd.to_datetime(df_xml['Order Date'])
     except Exception as e:
-        print(f"⚠️ Error consultando transacciones XML: {e}")
+        print(f"⚠️ Error consultando transacciones XML en Postgres: {e}")
 
     # --- FASE 3: CONSOLIDACIÓN HÍBRIDA ---
     if not df_csv.empty or not df_xml.empty:
-        # Concatenamos ambas fuentes
+        # Concatenamos ambas fuentes en una sola memoria global
         df_global = pd.concat([df_csv, df_xml], ignore_index=True)
-        
-        # ELIMINACIÓN CRÍTICA: Borramos las fuentes parciales para liberar la RAM de Render
-        del df_csv
-        del df_xml
-        
-        # Limpieza forzada de memoria
-        gc.collect()
-        
         print(f"📊 Consolidación Híbrida Exitosa: {len(df_global)} registros totales en memoria.")
     else:
         df_global = None
@@ -228,7 +169,7 @@ def load_data() -> None:
 
 @app.get("/")
 def read_root():
-    return {"status": "online", "message": "BI Facturacion Intelligence Unit"}
+    return {"status": "online", "message": "SuperTienda BI Intelligence Unit"}
 @app.get("/api/kpis")
 def get_kpis(user: Dict[str, Any] = Depends(get_current_user)):
     """
@@ -391,12 +332,8 @@ def get_subcategories(user: Dict[str, Any] = Depends(get_current_user)):
 # main.py - Endpoint de productos blindado
 
 @app.get("/api/products-analysis")
-def get_products_analysis(user: User = Depends(get_current_user)):
-    """
-    Analiza el rendimiento de productos: Fletes caros, mayores pérdidas 
-    y productos con menor aportación al ingreso monetario.
-    """
-    # 1. Molde de respuesta por defecto para evitar errores de renderizado
+def get_products_analysis(user = Depends(get_current_user)):
+
     empty_response = {
         "shipping": [],
         "top_losses": [],
@@ -407,41 +344,35 @@ def get_products_analysis(user: User = Depends(get_current_user)):
         return empty_response
     
     try:
-        # Trabajamos sobre una copia para proteger la integridad de la memoria principal
+        # Trabajamos sobre una copia para no alterar la memoria principal
         df = df_global.copy()
 
-        # 2. LIMPIEZA CRÍTICA DE VALORES FINANCIEROS
-        # Sustituimos infinitos y nulos por 0 para evitar errores de serialización JSON
-        cols_financieras = ['Profit', 'Shipping Cost', 'Sales']
-        for col in cols_financieras:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce').replace([np.inf, -np.inf], 0).fillna(0)
+        # 1. LIMPIEZA CRÍTICA DE VALORES NULOS E INFINITOS
+        # Esto evita el Error 500 y el ERR_CONNECTION_REFUSED
+        df['Profit'] = df['Profit'].replace([np.inf, -np.inf], 0).fillna(0)
+        df['Shipping Cost'] = df['Shipping Cost'].replace([np.inf, -np.inf], 0).fillna(0)
+        df['Sales'] = df['Sales'].replace([np.inf, -np.inf], 0).fillna(0)
 
-        # 3. MÓDULO LOGÍSTICA: Top 300 Transacciones con fletes más elevados
-        # Este análisis ayuda a identificar ineficiencias en el costo de envío
+        # 2. LOGÍSTICA: Top 300 Transacciones con fletes más caros
+        # Ordenamos por costo de envío de mayor a menor
         top_shipping_df = df.sort_values('Shipping Cost', ascending=False).head(300)
         
         shipping_list = []
         for _, row in top_shipping_df.iterrows():
             shipping_list.append({
-                "name": str(row['Product Name'])[:20] + "...", # Nombre corto para etiquetas
-                "fullName": str(row['Product Name']),          # Nombre completo para Tooltip
+                "name": str(row['Product Name'])[:20] + "...", # Para la gráfica
+                "fullName": str(row['Product Name']),          # Para el tooltip
                 "shipping_cost": float(row['Shipping Cost']),
                 "profit": float(row['Profit']),
-                "order_id": str(row.get('Order ID', 'N/A'))
+                "order_id": str(row['Order ID'])
             })
 
-        # 4. AGREGACIÓN MAESTRA POR PRODUCTO
-        # Consolidamos el historial para identificar el desempeño acumulado por SKU
-        p_agg = df.groupby('Product Name').agg({
-            'Profit': 'sum', 
-            'Sales': 'sum'
-        }).reset_index()
-
-        # 5. MÓDULO PÉRDIDAS: Los 13 productos con mayor margen negativo (Money Bleeders)
-        # Se ordena de forma ascendente para mostrar el profit más negativo primero
-        losses_df = p_agg[p_agg['Profit'] < 0].sort_values('Profit', ascending=True).head(20)
+        # 3. PEORES PÉRDIDAS EN DINERO (Agrupado por producto)
+        p_agg = df.groupby('Product Name').agg({'Profit': 'sum', 'Sales': 'sum'}).reset_index()
+        p_agg['Profit'] = p_agg['Profit'].fillna(0)
         
+        # Los 25 que más dinero nos han hecho perder en total
+        losses_df = p_agg[p_agg['Profit'] < 0].sort_values('Profit', ascending=True).head(25)
         top_losses = [
             {
                 "name": str(row['Product Name'])[:20] + "...",
@@ -451,20 +382,17 @@ def get_products_analysis(user: User = Depends(get_current_user)):
             } for _, row in losses_df.iterrows()
         ]
 
-        # 6. MÓDULO VENTAS: Bottom 20 de productos con menor ingreso monetario
-        # Representa los productos cuya aportación al ingreso bruto es marginal
+        # 4. BOTTOM VENTAS (Los 20 productos con menos ingresos)
         bottom_df = p_agg.sort_values('Sales', ascending=True).head(20)
-        
         bottom_20 = [
             {
                 "name": str(row['Product Name'])[:20] + "...",
                 "fullName": str(row['Product Name']),
-                "sales": float(row['Sales']) # Regresamos a la lógica original de pesos ($)
+                "sales": float(row['Sales'])
             } for _, row in bottom_df.iterrows()
         ]
 
-        print(">>> [API] Análisis de productos generado y enviado exitosamente.")
-        
+        print(">>> Datos de productos enviados con éxito")
         return {
             "shipping": shipping_list,
             "top_losses": top_losses,
@@ -472,12 +400,9 @@ def get_products_analysis(user: User = Depends(get_current_user)):
         }
 
     except Exception as e:
-        print(f"❌ Error en la ruta de análisis de productos: {str(e)}")
-        # Importante para debugear en la terminal de VS Code
-        import traceback
-        traceback.print_exc()
+        print(f"ERROR EN BACKEND: {str(e)}")
         return empty_response
-    
+
 # main.py - Agrega este endpoint
 
 @app.get("/api/top-discounts")
@@ -523,7 +448,7 @@ def get_top_discounts(user = Depends(get_current_user)):
 def get_discount_impact(user = Depends(get_current_user)):
 
     empty_response = {
-        "data":[],
+        "data": [],
         "total_loss_formatted": "$0 USD"
     }
 
@@ -534,15 +459,20 @@ def get_discount_impact(user = Depends(get_current_user)):
         # 1. Trabajamos sobre una copia limpia
         df = df_global.copy()
 
-        # MODIFICACIÓN: Usar la columna ya procesada por load_data
-        target_col = 'Tasa Descuento' if 'Tasa Descuento' in df.columns else 'Discount'
-        
+        # 2. LIMPIEZA FORZADA DE DESCUENTO
+        # Aseguramos que sea float. Si es string "10.00%", quitamos el %
+        if df['Discount'].dtype == 'object':
+            df['Discount'] = df['Discount'].astype(str).str.replace('%', '', regex=False)
+            df['Discount'] = pd.to_numeric(df['Discount'], errors='coerce').fillna(0) / 100
+        else:
+            df['Discount'] = pd.to_numeric(df['Discount'], errors='coerce').fillna(0)
+
         # 3. DEFINICIÓN DE RANGOS (BINS)
+        # Usamos un rango ligeramente superior a 1.0 (1.1) por si hay errores en el CSV
         bins = [-0.001, 0, 0.05, 0.10, 0.15, 0.20, 2.0] 
         labels = ["0%", "1-5%", "6-10%", "11-15%", "16-20%", "Más de 20%"]
         
-        # MODIFICACIÓN: Aplicar el corte sobre la columna detectada
-        df['Discount_Group'] = pd.cut(df[target_col], bins=bins, labels=labels)
+        df['Discount_Group'] = pd.cut(df['Discount'], bins=bins, labels=labels)
 
         # 4. AGRUPACIÓN Y SUMA DE PROFIT
         # observed=False es necesario en versiones nuevas de pandas para categoric data
@@ -592,15 +522,20 @@ def get_discount_net_impact(user = Depends(get_current_user)):
         # 1. Trabajamos sobre una copia limpia
         df = df_global.copy()
 
-        # MODIFICACIÓN: Usar la columna ya procesada por load_data
-        target_col = 'Tasa Descuento' if 'Tasa Descuento' in df.columns else 'Discount'
-        
+        # 2. LIMPIEZA FORZADA DE DESCUENTO
+        # Aseguramos que sea float. Si es string "10.00%", quitamos el %
+        if df['Discount'].dtype == 'object':
+            df['Discount'] = df['Discount'].astype(str).str.replace('%', '', regex=False)
+            df['Discount'] = pd.to_numeric(df['Discount'], errors='coerce').fillna(0) / 100
+        else:
+            df['Discount'] = pd.to_numeric(df['Discount'], errors='coerce').fillna(0)
+
         # 3. DEFINICIÓN DE RANGOS (BINS)
-        bins = [-0.001, 0, 0.05, 0.10, 0.15, 0.20, 2.0]
+        # Usamos un rango ligeramente superior a 1.0 (1.1) por si hay errores en el CSV
+        bins = [-0.001, 0, 0.05, 0.10, 0.15, 0.20, 2.0] 
         labels = ["0%", "1-5%", "6-10%", "11-15%", "16-20%", "Más de 20%"]
         
-        # MODIFICACIÓN: Aplicar el corte sobre la columna detectada
-        df['Discount_Group'] = pd.cut(df[target_col], bins=bins, labels=labels)
+        df['Discount_Group'] = pd.cut(df['Discount'], bins=bins, labels=labels)
 
         # 4. AGRUPACIÓN Y SUMA DE PROFIT
         # observed=False es necesario en versiones nuevas de pandas para categoric data
@@ -750,7 +685,7 @@ def get_countries_analysis(user = Depends(get_current_user)):
         ]
 
         # 3. RELACIÓN ENVÍO VS MARGEN (Tu Scatter solicitado)
-        # Calculamos para todos los estados para tener una nube completa
+        # Calculamos para todos los países para tener una nube completa
         shipping_relation = [
             {
                 "country": str(row['Country']),
@@ -775,7 +710,7 @@ def get_countries_analysis(user = Depends(get_current_user)):
             "critical_geo": critical_geo_list
         }
     except Exception as e:
-        print(f"Error en Estados: {e}")
+        print(f"Error en Países: {e}")
         return empty_response
 
 
@@ -908,7 +843,6 @@ async def upload_xml_zip(
         print(f"❌ Error en motor de ingesta XML: {e}")
         import traceback
         traceback.print_exc()
-        gc.collect()
         raise HTTPException(status_code=500, detail=f"Fallo en procesamiento: {str(e)}")
 
 
@@ -949,87 +883,3 @@ def update_page_insight(
         session.add(insight)
         session.commit()
         return {"status": "success"}
-
-""" TABLA DE EXPLORACIÓN DE DATOS """
-
-@app.get("/api/admin/data-explorer")
-def get_data_explorer(
-    request: Request,
-    page: int = 1, 
-    limit: int = 100, 
-    search: Optional[str] = None,
-    sort_by: Optional[str] = "Order Date", # Columna por defecto
-    sort_order: Optional[str] = "desc",    # Orden por defecto
-    user: User = Depends(get_current_user)
-):
-    if df_global is None or df_global.empty:
-        return {"items": [], "total": 0}
-
-    df_filtered = df_global.copy()
-    
-    # 1. Filtro Global y por columna (mismo código anterior)
-    if search:
-        s = search.lower()
-        df_filtered = df_filtered[df_filtered.apply(lambda row: row.astype(str).str.contains(s, case=False).any(), axis=1)]
-
-    params = request.query_params
-    for key, value in params.items():
-        if key not in ['page', 'limit', 'search', 'sort_by', 'sort_order'] and key in df_filtered.columns:
-            if value:
-                df_filtered = df_filtered[df_filtered[key].astype(str).str.contains(value, case=False)]
-
-    # 2. LÓGICA DE ORDENAMIENTO (NUEVO)
-    if sort_by in df_filtered.columns:
-        ascending = True if sort_order == "asc" else False
-        df_filtered = df_filtered.sort_values(by=sort_by, ascending=ascending)
-
-    # 3. Paginación y Limpieza
-    total_count = len(df_filtered)
-    start = (page - 1) * limit
-    end = start + limit
-    
-    batch = df_filtered.iloc[start:end].replace([np.inf, -np.inf], 0).fillna(0).infer_objects(copy=False)
-    
-    return {
-        "items": batch.to_dict(orient="records"),
-        "total": total_count,
-        "page": page,
-        "pages": (total_count // limit) + 1 if limit > 0 else 1
-    }
-
-
-    # --- RUTA: BORRADO MASIVO DE TRANSACCIONES (Admin Only) ---
-
-# --- RUTA: BORRADO MASIVO DE TRANSACCIONES (Versión sin Bitácora) ---
-
-@app.post("/api/admin/bulk-delete-transactions")
-async def bulk_delete_transactions(
-    ids: List[int], 
-    admin: User = Depends(require_admin)
-):
-    """
-    Elimina permanentemente registros por ID sin registro de bitácora.
-    """
-    if not ids:
-        raise HTTPException(status_code=400, detail="No se proporcionaron IDs.")
-
-    try:
-        with Session(engine) as session:
-            # Buscamos y borramos directamente
-            statement = select(TransactionXML).where(TransactionXML.id.in_(ids))
-            targets = session.exec(statement).all()
-            
-            count = len(targets)
-            for t in targets:
-                session.delete(t)
-            
-            session.commit()
-            
-        # Actualizamos la memoria global para que las gráficas cambien al instante
-        load_data()
-        
-        return {"status": "success", "deleted_count": count}
-
-    except Exception as e:
-        print(f"❌ Error en borrado masivo: {e}")
-        raise HTTPException(status_code=500, detail="Error al eliminar los datos.")
