@@ -94,23 +94,20 @@ df_global: Optional[pd.DataFrame] = None
 def load_data() -> None:
     global df_global
     path = "bi_facturacion_mx.csv"
-    
-    # Inicializamos para asegurar existencia en el scope
-    df_csv = pd.DataFrame()
-    df_xml = pd.DataFrame()
+    if not os.path.exists(path): return
 
-    # --- FASE 1: CARGA E INGENIERÍA DE DATOS DESDE CSV ---
-    if os.path.exists(path):
-        try:
-            # Cargamos el CSV
-            df_csv = pd.read_csv(path, encoding='utf-8-sig', low_memory=False)
-            df_csv.columns = [c.strip() for c in df_csv.columns]
-            
-            # Limpieza y Optimización de Memoria (float64 -> float32)
-            cols_to_fix = ['Sales', 'Profit', 'Shipping Cost', 'Pérdida']
-            for col in cols_to_fix:
-                if col not in df_csv.columns:
-                    df_csv[col] = 0
+    try:
+        df_csv = pd.read_csv(path, encoding='utf-8-sig', low_memory=False)
+        df_csv.columns = [c.strip() for c in df_csv.columns] # Quitamos espacios, mantenemos Mayúsculas
+        
+        # ASEGURAMOS QUE 'Quantity' SEA NUMÉRICA (para que no valga 0 o 1 fijo)
+        cols_to_fix = ['Sales', 'Profit', 'Shipping Cost', 'Pérdida', 'Quantity']
+        for col in cols_to_fix:
+            if col in df_csv.columns:
+                df_csv[col] = pd.to_numeric(
+                    df_csv[col].astype(str).str.replace(',', '').replace('-', '0'), 
+                    errors='coerce'
+                ).fillna(0)
                 
                 # Convertimos a numérico y forzamos float32 para ahorrar 50% de espacio en cada celda
                 df_csv[col] = pd.to_numeric(
@@ -138,12 +135,14 @@ def load_data() -> None:
             if 'Discount' in df_csv.columns: df_csv = df_csv.drop(columns=['Discount'])
             if 'Discount rate' in df_csv.columns: df_csv = df_csv.drop(columns=['Discount rate'])
 
-            df_csv['Order Date'] = pd.to_datetime(df_csv['Order Date'], dayfirst=True, errors='coerce')
-            df_csv['Ship Date'] = pd.to_datetime(df_csv['Ship Date'], dayfirst=True, errors='coerce')
+            df_csv['Order Date'] = pd.to_datetime(df_csv['Order Date'], dayfirst=False, errors='coerce')
+            df_csv['Ship Date'] = pd.to_datetime(df_csv['Ship Date'], dayfirst=False, errors='coerce')
             df_csv = df_csv.dropna(subset=['Order Date'])
             
-        except Exception as e:
-            print(f"⚠️ Error procesando CSV histórico: {e}")
+        df_global = df_csv
+        print(f"📊 Dataset cargado: {len(df_global)} registros.")
+    except Exception as e:
+        print(f"Error: {e}")
 
     # --- FASE 2: CARGA DESDE VERCEL POSTGRES (OPERACIÓN XML) ---
     try:
@@ -178,6 +177,7 @@ def load_data() -> None:
                     'sub_category': 'Sub-Category',
                     'product_name': 'Product Name',
                     'sales': 'Sales',
+                    'quantity': 'Quantity',
                     'profit': 'Profit',
                     'shipping_cost': 'Shipping Cost',
                     'country': 'Country',
@@ -381,8 +381,12 @@ def get_subcategories(user: Dict[str, Any] = Depends(get_current_user)):
 # main.py - Endpoint de productos blindado
 
 @app.get("/api/products-analysis")
-def get_products_analysis(user = Depends(get_current_user)):
-
+def get_products_analysis(user: User = Depends(get_current_user)):
+    """
+    Analiza el rendimiento de productos: Fletes caros, mayores pérdidas 
+    y productos con menor aportación al ingreso monetario.
+    """
+    # 1. Molde de respuesta por defecto para evitar errores de renderizado
     empty_response = {
         "shipping": [],
         "top_losses": [],
@@ -393,35 +397,41 @@ def get_products_analysis(user = Depends(get_current_user)):
         return empty_response
     
     try:
-        # Trabajamos sobre una copia para no alterar la memoria principal
+        # Trabajamos sobre una copia para proteger la integridad de la memoria principal
         df = df_global.copy()
 
-        # 1. LIMPIEZA CRÍTICA DE VALORES NULOS E INFINITOS
-        # Esto evita el Error 500 y el ERR_CONNECTION_REFUSED
-        df['Profit'] = df['Profit'].replace([np.inf, -np.inf], 0).fillna(0)
-        df['Shipping Cost'] = df['Shipping Cost'].replace([np.inf, -np.inf], 0).fillna(0)
-        df['Sales'] = df['Sales'].replace([np.inf, -np.inf], 0).fillna(0)
+        # 2. LIMPIEZA CRÍTICA DE VALORES FINANCIEROS
+        # Sustituimos infinitos y nulos por 0 para evitar errores de serialización JSON
+        cols_financieras = ['Profit', 'Shipping Cost', 'Sales']
+        for col in cols_financieras:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').replace([np.inf, -np.inf], 0).fillna(0)
 
-        # 2. LOGÍSTICA: Top 300 Transacciones con fletes más caros
-        # Ordenamos por costo de envío de mayor a menor
+        # 3. MÓDULO LOGÍSTICA: Top 300 Transacciones con fletes más elevados
+        # Este análisis ayuda a identificar ineficiencias en el costo de envío
         top_shipping_df = df.sort_values('Shipping Cost', ascending=False).head(300)
         
         shipping_list = []
         for _, row in top_shipping_df.iterrows():
             shipping_list.append({
-                "name": str(row['Product Name'])[:20] + "...", # Para la gráfica
-                "fullName": str(row['Product Name']),          # Para el tooltip
+                "name": str(row['Product Name'])[:20] + "...", # Nombre corto para etiquetas
+                "fullName": str(row['Product Name']),          # Nombre completo para Tooltip
                 "shipping_cost": float(row['Shipping Cost']),
                 "profit": float(row['Profit']),
-                "order_id": str(row['Order ID'])
+                "order_id": str(row.get('Order ID', 'N/A'))
             })
 
-        # 3. PEORES PÉRDIDAS EN DINERO (Agrupado por producto)
-        p_agg = df.groupby('Product Name').agg({'Profit': 'sum', 'Sales': 'sum'}).reset_index()
-        p_agg['Profit'] = p_agg['Profit'].fillna(0)
+        # 4. AGREGACIÓN MAESTRA POR PRODUCTO
+        # Consolidamos el historial para identificar el desempeño acumulado por SKU
+        p_agg = df.groupby('Product Name').agg({
+            'Profit': 'sum', 
+            'Sales': 'sum'
+        }).reset_index()
+
+        # 5. MÓDULO PÉRDIDAS: Los 13 productos con mayor margen negativo (Money Bleeders)
+        # Se ordena de forma ascendente para mostrar el profit más negativo primero
+        losses_df = p_agg[p_agg['Profit'] < 0].sort_values('Profit', ascending=True).head(13)
         
-        # Los 25 que más dinero nos han hecho perder en total
-        losses_df = p_agg[p_agg['Profit'] < 0].sort_values('Profit', ascending=True).head(25)
         top_losses = [
             {
                 "name": str(row['Product Name'])[:20] + "...",
@@ -431,17 +441,20 @@ def get_products_analysis(user = Depends(get_current_user)):
             } for _, row in losses_df.iterrows()
         ]
 
-        # 4. BOTTOM VENTAS (Los 20 productos con menos ingresos)
+        # 6. MÓDULO VENTAS: Bottom 20 de productos con menor ingreso monetario
+        # Representa los productos cuya aportación al ingreso bruto es marginal
         bottom_df = p_agg.sort_values('Sales', ascending=True).head(20)
+        
         bottom_20 = [
             {
                 "name": str(row['Product Name'])[:20] + "...",
                 "fullName": str(row['Product Name']),
-                "sales": float(row['Sales'])
+                "sales": float(row['Sales']) # Regresamos a la lógica original de pesos ($)
             } for _, row in bottom_df.iterrows()
         ]
 
-        print(">>> Datos de productos enviados con éxito")
+        print(">>> [API] Análisis de productos generado y enviado exitosamente.")
+        
         return {
             "shipping": shipping_list,
             "top_losses": top_losses,
@@ -449,9 +462,12 @@ def get_products_analysis(user = Depends(get_current_user)):
         }
 
     except Exception as e:
-        print(f"ERROR EN BACKEND: {str(e)}")
+        print(f"❌ Error en la ruta de análisis de productos: {str(e)}")
+        # Importante para debugear en la terminal de VS Code
+        import traceback
+        traceback.print_exc()
         return empty_response
-
+    
 # main.py - Agrega este endpoint
 
 @app.get("/api/top-discounts")

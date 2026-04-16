@@ -20,7 +20,7 @@ interface ConclusionCardProps {
   description: string;
   impact: 'alto' | 'medio' | 'bajo';
   type: 'positivo' | 'negativo' | 'neutral';
-  evidence: 'Ranking de Rentabilidad por tipo de Producto' | 'Impacto de Envíos Caros en la Utilidad' | 'Mapa de Frecuencia vs Volumen' | 'Productos con Menor Desplazamiento';
+  evidence: 'Ranking de Rentabilidad por tipo de Producto' | 'Impacto de Envíos Caros en la Utilidad' | 'Mapa de Frecuencia vs Ventas por Cliente' | 'Productos con Menor Desplazamiento';
 }
 
 // Componente para cada item de la lista (Reemplaza visualmente a tu BusinessQuestion actual si es texto simple)
@@ -129,7 +129,7 @@ export default function ConclusionsView() {
           description="Existe una intersección sana de clientes que generan alto volumen y alta rentabilidad (VIPs). Estos representan el motor de crecimiento de la empresa."
           impact="alto"
           type="positivo"
-          evidence="Mapa de Frecuencia vs Volumen"
+          evidence="Mapa de Frecuencia vs Ventas por Cliente"
         />
 
         <ConclusionCard 

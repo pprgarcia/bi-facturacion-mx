@@ -139,7 +139,7 @@ export default function CountriesView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
         
         {/* 2. ESTADOS CON MENOR RENTABILIDAD */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-[500px] flex flex-col">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-125 flex flex-col">
           <h3 className="text-xs font-bold text-rose-500 uppercase tracking-widest mb-6 italic">Top 15: Estados con Mayor Pérdida Neta</h3>
           <div className="flex-1 w-full" style={{ minHeight: '400px' }}>
             <ResponsiveContainer width="100%" height={400}>
@@ -155,7 +155,7 @@ export default function CountriesView() {
         </div>
 
         {/* 3. CONCENTRACIÓN DE CLIENTES CRÍTICOS */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-[500px] flex flex-col">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-125 flex flex-col">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 italic text-center lg:text-left">Estados con más Clientes en Pérdida</h3>
           <div className="flex-1 w-full" style={{ minHeight: '400px' }}>
             <ResponsiveContainer width="100%" height={400}>

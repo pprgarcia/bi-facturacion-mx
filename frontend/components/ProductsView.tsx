@@ -51,6 +51,7 @@ export default function ProductsView() {
         return res.json();
       })
       .then((json: ProductAnalysisData) => {
+        console.log("📊 DATOS RECIBIDOS EN PRODUCTOS:", json.bottom_20);
         setData(json);
         setMounted(true);
       })
@@ -135,7 +136,7 @@ export default function ProductsView() {
         {/* 2. RANKING PÉRDIDAS EN DINERO REAL */}
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-137.5 flex flex-col">
           <h3 className="text-xs font-bold text-rose-500 uppercase tracking-widest mb-6 italic text-center lg:text-left">
-            Top 25: Productos con Mayor Pérdida ($)
+            Top 13: Productos con Mayor Pérdida ($)
           </h3>
           <div className="flex-1 w-full" style={{ minHeight: '450px' }}>
             <ResponsiveContainer width="100%" height={450}>
@@ -161,25 +162,44 @@ export default function ProductsView() {
           </div>
         </div>
 
-        {/* 3. BOTTOM VENTAS */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-137.5 flex flex-col">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 text-center lg:text-left italic">
-            Productos con Menor Desplazamiento ($)
+        {/* Gráfica 3: Productos con Menor Desplazamiento */}
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-137.5 flex flex-col min-w-0">
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6 italic">
+            Productos con Menor Aportación al Ingreso ($)
           </h3>
           <div className="flex-1 w-full" style={{ minHeight: '450px' }}>
-            <ResponsiveContainer width="100%" height={450}>
-              <BarChart data={data.bottom_20} layout="vertical" margin={{ left: 10, right: 40, bottom: 20 }}>
+            <ResponsiveContainer width="100%" height={450} key={data.bottom_20.length}>
+              <BarChart 
+                data={data.bottom_20} 
+                layout="vertical" 
+                margin={{ left: 10, right: 60, bottom: 20 }} // Aumentamos margen derecho
+              >
                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
                 <XAxis 
-                  type="number" 
+                  type="number"
                   tickFormatter={(v: number) => `$${v.toFixed(0)}`} 
                   tick={{fill: '#94a3b8', fontSize: 10}} 
+                  axisLine={false}
+                  tickLine={false}
+                />
+
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  width={140} 
+                  tick={{fontSize: 9, fill: '#64748b', fontWeight: 600}} 
                   axisLine={false} 
                   tickLine={false} 
                 />
-                <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 9, fill: '#64748b', fontWeight: 600}} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="sales" name="Ventas" fill="#cbd5e1" radius={[0, 4, 4, 0]} barSize={12} />
+                <Tooltip 
+                  content={<CustomTooltip />} />
+                <Bar 
+                  dataKey="sales" // <--- DEBE coincidir con la llave de Python
+                  name="Ventas" 
+                  fill="#cbd5e1"   // <--- Cambiamos a Púrpura para que resalte
+                  radius={[0, 4, 4, 0]} 
+                  barSize={12} 
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>

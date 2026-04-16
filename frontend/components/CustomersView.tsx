@@ -86,8 +86,8 @@ export default function CustomersView() {
 
 
       {/* MAPA DE SEGMENTACIÓN */}
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-[500px] w-full flex flex-col">
-        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6 italic">Mapa de Frecuencia vs Volumen</h3>
+      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-125 w-full flex flex-col">
+        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6 italic">Mapa de Frecuencia vs Ventas por cliente</h3>
         {mounted && (
         <div className="flex-1 w-full" style={{ minHeight: '400px' }}>
           <ResponsiveContainer width="100%" height={400}>
@@ -153,7 +153,7 @@ export default function CustomersView() {
 function ChartBox({ title, data, dataKey, color, highlightColor, highlightSet, isLoss = false }: ChartBoxProps) {
   const safeData = Array.isArray(data) ? data : [];
   return (
-    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-[400px] flex flex-col">
+    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-100 flex flex-col">
       <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">{title}</h3>
       <div className="flex-1 w-full" style={{ minHeight: '350px' }}>
         <ResponsiveContainer width="100%" height={350}>
