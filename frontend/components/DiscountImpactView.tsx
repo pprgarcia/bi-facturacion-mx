@@ -130,7 +130,7 @@ useEffect(() => {
 
       {/* 2. FILA DE ANÁLISIS CATEGÓRICO */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-[450px] flex flex-col">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-112.5 flex flex-col">
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Rentabilidad por Categoría</h3>
           {mounted && (
           <div className="flex-1 w-full" style={{ minHeight: '350px' }}>
@@ -149,7 +149,7 @@ useEffect(() => {
           )}
         </div>
 
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-[450px] flex flex-col">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-112.5 flex flex-col">
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Ranking de Rentabilidad por tipo de Producto (Ordenado por profit)</h3>
             {mounted && (
             <div className="flex-1 w-full" style={{ minHeight: '350px' }}>
@@ -195,9 +195,9 @@ useEffect(() => {
              {mounted && (
              <div className="flex-1 w-full" style={{ minHeight: '350px' }}>
                 <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={lossErosion.data}>
+                  <BarChart data={lossErosion.data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="group" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10, fontWeight: 700}} />
+                    <XAxis dataKey="group" interval={0} axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10, fontWeight: 700}} />
                     <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} tickFormatter={formatYAxis} width={40} />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="profit" name="Pérdida" fill="#fb7185" radius={[4, 4, 0, 0]} />

@@ -136,7 +136,7 @@ export default function ProductsView() {
         {/* 2. RANKING PÉRDIDAS EN DINERO REAL */}
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-137.5 flex flex-col">
           <h3 className="text-xs font-bold text-rose-500 uppercase tracking-widest mb-6 italic text-center lg:text-left">
-            Top 13: Productos con Mayor Pérdida ($)
+            Top 20: Productos con Mayor Pérdida ($)
           </h3>
           <div className="flex-1 w-full" style={{ minHeight: '450px' }}>
             <ResponsiveContainer width="100%" height={450}>

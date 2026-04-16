@@ -41,6 +41,32 @@ interface CustomerInsightProps {
   type: 'success' | 'error' | 'info';
 }
 
+const cleanName = (name: string): string => {
+  if (!name) return "";
+
+  // 1. Array de terminaciones a remover (Regex)
+  const suffixes = [
+    / S\.A\. de C\.V\./gi,
+    / S\. de R\.L\. de C\.V\./gi,
+    / S\.C\./gi,
+    / e Hijos/gi,
+    / Group México/gi,
+    / y Familia/gi,
+    / Industrial/gi
+  ];
+
+  let cleaned = name;
+  suffixes.forEach(regex => {
+    cleaned = cleaned.replace(regex, "");
+  });
+
+  // 2. Truncado a 20 caracteres + puntos suspensivos
+  const maxLength = 20;
+  return cleaned.length > maxLength 
+    ? `${cleaned.substring(0, maxLength)}...` 
+    : cleaned;
+};
+
 // --- 2. COMPONENTE PRINCIPAL ---
 export default function CustomersView() {
   const [data, setData] = useState<CustomerAnalysisData | null>(null);
@@ -153,13 +179,34 @@ export default function CustomersView() {
 function ChartBox({ title, data, dataKey, color, highlightColor, highlightSet, isLoss = false }: ChartBoxProps) {
   const safeData = Array.isArray(data) ? data : [];
   return (
-    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-100 flex flex-col">
+    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-150 flex flex-col">
       <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">{title}</h3>
-      <div className="flex-1 w-full" style={{ minHeight: '350px' }}>
-        <ResponsiveContainer width="100%" height={350}>
+      <div className="flex-1 w-full" style={{ minHeight: '500px' }}>
+        <ResponsiveContainer width="100%" height={500}>
           <BarChart data={safeData} layout="vertical" margin={{ left: 10, right: 30, bottom: 20 }}>
             <XAxis type="number" domain={isLoss ? ['auto', 0] : [0, 'auto']} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} dy={10} />
-            <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 9, fill: '#64748b', fontWeight: 600}} axisLine={false} tickLine={false} />
+            <YAxis 
+              dataKey="name" 
+              type="category" 
+              /* 
+                1. Aumentamos el ancho dedicado al texto (de 140 a 180 o 200). 
+                Esto evita que el nombre choque con la barra.
+              */
+              width={180} 
+              /* 
+                2. Aplicamos nuestra función de limpieza 
+              */
+              tickFormatter={cleanName}
+              axisLine={false} 
+              tickLine={false} 
+              tick={{
+                fontSize: 10, 
+                fill: '#64748b', 
+                fontWeight: 600,
+                // Aseguramos que el texto esté alineado a la derecha del eje
+                textAnchor: 'end' 
+              }} 
+            />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
             <Bar dataKey={dataKey} radius={[0, 4, 4, 0]} barSize={10}>
               {safeData?.map((entry, index) => (
