@@ -17,7 +17,7 @@ def crear():
         else:
             print("Creando usuario nuevo...")
             usuario = User(
-                email="admin@test.com",
+                email="joserodriguez@bifacturacion.com",
                 hashed_password=hash_password("admin_bifact!2026"),
                 full_name="Admin Rescatado",
                 role="owner",
@@ -27,8 +27,8 @@ def crear():
         
         session.commit()
         print("✅ PROCESO EXITOSO")
-        print("Email: admin@test.com")
-        print("Password: SuperTienda_2026!")
+        print("Email: joserodriguez@bifacturacion.com")
+        print("Password: admin_bifact!2026!")
 
 if __name__ == "__main__":
     crear()
