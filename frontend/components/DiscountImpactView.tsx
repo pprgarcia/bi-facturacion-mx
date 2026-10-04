@@ -276,7 +276,7 @@ useEffect(() => {
              </div>
              <p className="text-slate-300 text-xs leading-relaxed italic">
                 &quot;Se detecta una correlación crítica: los productos con mayor volumen de descuento (barra coral) 
-                coinciden sistemáticamente con los mayores márgenes negativos. Se requiere intervención de precios.&quot;
+                coinciden sistemáticamente con los mayores márgenes negativos. Se requiere intervención de precios y descuentos.&quot;
              </p>
           </div>
         </div>
